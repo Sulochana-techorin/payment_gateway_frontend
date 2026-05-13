@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { API_CONFIG, API_ROUTES, buildApiUrl, formatPrice } from "@/app/utils/properties";
@@ -16,7 +16,7 @@ type Order = {
   currency?: string;
 };
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const params = useSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState("");
@@ -367,5 +367,13 @@ export default function PaymentSuccessPage() {
         }
       `}</style>
     </main>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<div className="reg-root" style={{ background: "linear-gradient(135deg, #0f0c29 0%, #1a1042 40%, #24243e 100%)", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}><p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", fontFamily: "sans-serif" }}>Loading payment success...</p></div>}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }

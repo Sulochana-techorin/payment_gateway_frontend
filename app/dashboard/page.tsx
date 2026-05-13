@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   API_CONFIG,
@@ -37,7 +37,7 @@ type SubscriptionData = {
   } | null;
 };
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -506,6 +506,14 @@ export default function DashboardPage() {
 
       <style>{dashStyles}</style>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="dash-root" style={{ background: "linear-gradient(135deg, #0f0c29 0%, #1a1042 40%, #24243e 100%)", minHeight: "100vh", display: "flex", justifyContent: "center", paddingTop: "32px" }}><p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", fontFamily: "sans-serif" }}>Loading dashboard...</p></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
 
