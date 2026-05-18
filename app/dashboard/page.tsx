@@ -35,6 +35,15 @@ type SubscriptionData = {
     start_date: string;
     end_date: string;
   } | null;
+  paymentHistory?: {
+    id: number;
+    payment_id: string;
+    order_id: string;
+    charge_type: string;
+    amount: string;
+    currency: string;
+    date: string;
+  }[];
 };
 
 function DashboardContent() {
@@ -444,12 +453,71 @@ function DashboardContent() {
                 <span className="info-value">{subData.order.user_count}</span>
               </div>
               
+              <div style={{ marginTop: 20 }}>
+                <button
+                  className="action-btn action-btn-cancel-sub"
+                  onClick={handleCancelSubscription}
+                  disabled={isCancelling}
+                >
+                  {isCancelling ? "Cancelling..." : "Cancel Subscription"}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="card-body">
               <p className="no-data">No active subscription found.</p>
             </div>
           )}
+        </div>
+
+        {/* Payment History Section */}
+        <div className="dash-card">
+          <div className="card-header">
+            <div className="card-icon card-icon-purple">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
+            <h2 className="card-title">Payment History</h2>
+          </div>
+
+          <div className="card-body" style={{ padding: "0" }}>
+            {subData?.paymentHistory && subData.paymentHistory.length > 0 ? (
+              <div className="table-responsive">
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Payment ID</th>
+                      <th>Type</th>
+                      <th style={{ textAlign: "right" }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subData.paymentHistory.map((payment) => (
+                      <tr key={payment.id}>
+                        <td>{new Date(payment.date).toLocaleDateString()}</td>
+                        <td className="info-mono">{payment.payment_id}</td>
+                        <td>
+                          <span className={`type-badge type-${payment.charge_type.toLowerCase()}`}>
+                            {payment.charge_type}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: "right", fontWeight: 600, color: "#34d399" }}>
+                          {formatPrice(parseFloat(payment.amount), payment.currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ padding: "20px 24px" }}>
+                <p className="no-data">No payment history found.</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Card Management Section */}
@@ -624,6 +692,11 @@ const dashStyles = `
     color: #fbbf24;
   }
 
+  .card-icon-purple {
+    background: rgba(168,85,247,0.15);
+    color: #a855f7;
+  }
+
   .card-title {
     font-size: 15px;
     font-weight: 700;
@@ -713,6 +786,65 @@ const dashStyles = `
     color: rgba(255,255,255,0.35);
     text-align: center;
     padding: 20px 0;
+  }
+
+  /* Payment History Table */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    color: #fff;
+  }
+
+  .history-table th {
+    text-align: left;
+    padding: 14px 24px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .history-table td {
+    padding: 14px 24px;
+    border-bottom: 1px dashed rgba(255,255,255,0.05);
+  }
+
+  .history-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .history-table tr:hover td {
+    background: rgba(255,255,255,0.02);
+  }
+
+  .type-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .type-initial {
+    background: rgba(56,189,248,0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56,189,248,0.25);
+  }
+
+  .type-renewal {
+    background: rgba(168,85,247,0.15);
+    color: #a855f7;
+    border: 1px solid rgba(168,85,247,0.25);
   }
 
   /* Edit form */

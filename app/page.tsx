@@ -12,12 +12,12 @@ export default function Home() {
         <div className="landing-icon">
           <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="28" cy="28" r="28" fill="url(#grad)" />
-            <path d="M17 28C17 21.925 21.925 17 28 17C34.075 17 39 21.925 39 28C39 34.075 34.075 39 28 39C21.925 39 17 34.075 17 28Z" fill="white" fillOpacity="0.15"/>
-            <path d="M22 28.5L26.5 33L34 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M17 28C17 21.925 21.925 17 28 17C34.075 17 39 21.925 39 28C39 34.075 34.075 39 28 39C21.925 39 17 34.075 17 28Z" fill="white" fillOpacity="0.15" />
+            <path d="M22 28.5L26.5 33L34 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             <defs>
               <linearGradient id="grad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#6366f1"/>
-                <stop offset="1" stopColor="#8b5cf6"/>
+                <stop stopColor="#6366f1" />
+                <stop offset="1" stopColor="#8b5cf6" />
               </linearGradient>
             </defs>
           </svg>
@@ -41,8 +41,8 @@ export default function Home() {
           >
             <span className="btn-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
               </svg>
             </span>
             <span className="btn-text">
@@ -60,9 +60,9 @@ export default function Home() {
           >
             <span className="btn-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                <polyline points="10 17 15 12 10 7"/>
-                <line x1="15" y1="12" x2="3" y2="12"/>
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
               </svg>
             </span>
             <span className="btn-text">
@@ -80,10 +80,10 @@ export default function Home() {
           >
             <span className="btn-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7"/>
-                <rect x="14" y="3" width="7" height="7"/>
-                <rect x="14" y="14" width="7" height="7"/>
-                <rect x="3" y="14" width="7" height="7"/>
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
               </svg>
             </span>
             <span className="btn-text">
