@@ -483,19 +483,19 @@ function DashboardContent() {
           </div>
 
           <div className="card-body" style={{ padding: "0" }}>
-            {subData?.paymentHistory && subData.paymentHistory.length > 0 ? (
-              <div className="table-responsive">
-                <table className="history-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Payment ID</th>
-                      <th>Type</th>
-                      <th style={{ textAlign: "right" }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subData.paymentHistory.map((payment) => (
+            <div className="table-responsive">
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Payment ID</th>
+                    <th>Type</th>
+                    <th style={{ textAlign: "right" }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subData?.paymentHistory && subData.paymentHistory.length > 0 ? (
+                    subData.paymentHistory.map((payment) => (
                       <tr key={payment.id}>
                         <td>{new Date(payment.date).toLocaleDateString()}</td>
                         <td className="info-mono">{payment.payment_id}</td>
@@ -508,15 +508,17 @@ function DashboardContent() {
                           {formatPrice(parseFloat(payment.amount), payment.currency)}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ padding: "20px 24px" }}>
-                <p className="no-data">No payment history found.</p>
-              </div>
-            )}
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: "center", padding: "30px 0" }}>
+                        <p className="no-data">No payment history found.</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
