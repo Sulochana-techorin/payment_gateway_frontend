@@ -66,6 +66,18 @@ function Pagination({ meta, onPage, onLimit }: {
   );
 }
 
+/* ─── Date Formatter Helper ─── */
+function formatDateTime(val: any) {
+  if (!val || val === "N/A") return "N/A";
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    return d.toLocaleString();
+  } catch {
+    return String(val);
+  }
+}
+
 /* ─── Main page ──────────────────────────────────────────── */
 export default function AdminPage() {
   const router = useRouter();
@@ -367,7 +379,7 @@ export default function AdminPage() {
                         <div className="t-b-sep">•</div>
                         <div className="t-b-item">
                           <span>Latest Next Payment Date:</span>
-                          <strong style={{ color: "#34d399" }}>{trackingData.summary?.latestNextPaymentDate || "N/A"}</strong>
+                          <strong style={{ color: "#34d399" }}>{formatDateTime(trackingData.summary?.latestNextPaymentDate)}</strong>
                         </div>
                         <div className="t-b-sep">•</div>
                         <div className="t-b-item">
@@ -415,11 +427,11 @@ export default function AdminPage() {
                                       Type: <span style={{ color: tr.type === "INITIAL" ? "#38bdf8" : "#a855f7", fontWeight: 700 }}>{tr.type}</span>
                                     </div>
                                     <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-                                      Date: {tr.date}
+                                      Date: {formatDateTime(tr.date)}
                                     </div>
                                   </td>
                                   <td style={{ color: tr.nextPaymentDateTime !== "N/A" ? "#34d399" : "inherit", fontWeight: 600 }}>
-                                    {tr.nextPaymentDateTime}
+                                    {formatDateTime(tr.nextPaymentDateTime)}
                                   </td>
                                   <td>
                                     {tr.cardTracking?.updated ? (
@@ -427,7 +439,7 @@ export default function AdminPage() {
                                         <span className="c-dot success"></span>
                                         <div>
                                           <div style={{ fontWeight: 600, color: "#38bdf8" }}>Updated ({tr.cardTracking.method})</div>
-                                          <div className="dim" style={{ fontSize: 10 }}>{tr.cardTracking.updatedAt}</div>
+                                          <div className="dim" style={{ fontSize: 10 }}>{formatDateTime(tr.cardTracking.updatedAt)}</div>
                                         </div>
                                       </div>
                                     ) : (
@@ -438,7 +450,7 @@ export default function AdminPage() {
                                     <div style={{ fontSize: 11, background: "rgba(255,255,255,0.04)", padding: "4px 8px", borderRadius: 6 }}>
                                       <span style={{ color: "#a5b4fc", fontWeight: 600 }}>Status:</span> {tr.livePayhereAppDetails?.status || "Unknown"}
                                       {tr.livePayhereAppDetails?.next_payment_date && (
-                                        <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>Sync: {tr.livePayhereAppDetails.next_payment_date}</div>
+                                        <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>Sync: {formatDateTime(tr.livePayhereAppDetails.next_payment_date)}</div>
                                       )}
                                     </div>
                                   </td>
