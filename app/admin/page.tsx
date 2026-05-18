@@ -22,6 +22,7 @@ const STATUS_CLR: Record<string, [string, string]> = {
   ACTIVE: ["rgba(52,211,153,0.15)", "#34d399"],
   PENDING: ["rgba(251,191,36,0.15)", "#fbbf24"],
   FAILED: ["rgba(248,113,113,0.15)", "#f87171"],
+  CANCELLED: ["rgba(239,68,68,0.15)", "#ef4444"], // Premium deep red/rose badge for cancelled states
 };
 function Badge({ s }: { s: string }) {
   const [bg, col] = STATUS_CLR[s] ?? ["rgba(148,163,184,0.15)", "#94a3b8"];
