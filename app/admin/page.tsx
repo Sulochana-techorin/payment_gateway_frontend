@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { buildApiUrl, formatPrice } from "@/app/utils/properties";
 
@@ -397,8 +397,9 @@ export default function AdminPage() {
                               <tr><td colSpan={6} className="empty">No tracking timeline recorded for this account.</td></tr>
                             ) : (
                               trackingData.trackingRecords?.map((tr: any) => (
-                                <tr key={tr.orderId}>
-                                  <td className="mono" style={{ fontSize: 11, color: "#cbd5e1" }}>
+                                <React.Fragment key={tr.orderId}>
+                                  <tr>
+                                    <td className="mono" style={{ fontSize: 11, color: "#cbd5e1" }}>
                                     <div>{tr.orderId}</div>
                                     <Badge s={tr.status} />
                                   </td>
@@ -445,6 +446,40 @@ export default function AdminPage() {
                                     )}
                                   </td>
                                 </tr>
+                                {tr.charges && tr.charges.length > 0 && (
+                                  <tr style={{ background: "rgba(0,0,0,0.2)" }}>
+                                    <td colSpan={6} style={{ padding: "12px 16px" }}>
+                                      <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 8, textTransform: "uppercase" }}>Charge History (PayHere Webhooks)</div>
+                                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                                        <thead>
+                                          <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                                            <th style={{ textAlign: "left", padding: "6px 4px", color: "rgba(255,255,255,0.4)", textTransform: "none" }}>Date</th>
+                                            <th style={{ textAlign: "left", padding: "6px 4px", color: "rgba(255,255,255,0.4)", textTransform: "none" }}>Payment No</th>
+                                            <th style={{ textAlign: "left", padding: "6px 4px", color: "rgba(255,255,255,0.4)", textTransform: "none" }}>Type</th>
+                                            <th style={{ textAlign: "left", padding: "6px 4px", color: "rgba(255,255,255,0.4)", textTransform: "none" }}>Status</th>
+                                            <th style={{ textAlign: "right", padding: "6px 4px", color: "rgba(255,255,255,0.4)", textTransform: "none" }}>Amount</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {tr.charges.map((c: any, i: number) => (
+                                            <tr key={i} style={{ borderBottom: "1px dashed rgba(255,255,255,0.03)" }}>
+                                              <td style={{ padding: "6px 4px", color: "#e2e8f0" }}>{new Date(c.date).toLocaleString()}</td>
+                                              <td style={{ padding: "6px 4px", color: "#38bdf8", fontFamily: "monospace" }}>{c.payment_id}</td>
+                                              <td style={{ padding: "6px 4px" }}>
+                                                <span style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 10, color: "#e2e8f0" }}>{c.charge_type}</span>
+                                              </td>
+                                              <td style={{ padding: "6px 4px", color: c.status_code === "2" ? "#34d399" : "#f87171" }}>
+                                                {c.status_code === "2" ? "Authorized" : "Failed / " + c.status_code}
+                                              </td>
+                                              <td style={{ padding: "6px 4px", textAlign: "right", color: "#e2e8f0", fontWeight: 600 }}>{c.currency} {c.amount}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
                               ))
                             )}
                           </tbody>
