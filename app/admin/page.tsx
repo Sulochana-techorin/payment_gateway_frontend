@@ -6,8 +6,9 @@ import { buildApiUrl, formatPrice } from "@/app/utils/properties";
 
 /* ─── Types ──────────────────────────────────────────────── */
 type Payment = {
-  id: string; user_id: number; userName: string; userEmail: string;
+  id: string; orderId: string; user_id: number; userName: string; userEmail: string;
   total_amount: number; user_count: number; status: string; invoice_path?: string | null; currency?: string;
+  paymentId?: string; charge_type?: string; date?: string;
 };
 type User = { id: number; name: string; email: string; userCount: number; };
 type Meta = { total: number; page: number; totalPages: number; limit: number; };
@@ -269,15 +270,25 @@ export default function AdminPage() {
                     {payments.length === 0
                       ? <tr><td colSpan={7} className="empty">No payments found</td></tr>
                       : payments.map((p) => (
-                        <tr key={p.id} onClick={() => handleRowClick(p.user_id, p.id)} style={{ cursor: "pointer" }}>
-                          <td className="mono" title={p.id}>{p.id.slice(0, 8)}…</td>
+                        <tr key={p.id} onClick={() => handleRowClick(p.user_id, p.orderId)} style={{ cursor: "pointer" }}>
+                          <td className="mono" title={p.paymentId !== "N/A" ? p.paymentId : p.orderId}>
+                            <div style={{ fontWeight: 600, color: p.paymentId !== "N/A" ? "#38bdf8" : "#cbd5e1" }}>
+                              {p.paymentId !== "N/A" ? p.paymentId : p.orderId.slice(0, 8) + "…"}
+                            </div>
+                            <div style={{ fontSize: 10, color: p.charge_type === "INITIAL" ? "#38bdf8" : "#a855f7", fontWeight: 700, marginTop: 3 }}>
+                              {p.charge_type}
+                            </div>
+                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                              {p.date ? formatDateTime(p.date) : ""}
+                            </div>
+                          </td>
                           <td>{p.userName}</td>
                           <td className="dim">{p.userEmail}</td>
                           <td>{p.user_count}</td>
                           <td className="amt">{formatPrice(Number(p.total_amount), p.currency)}</td>
                           <td><Badge s={p.status} /></td>
                           <td>{p.invoice_path
-                            ? <button className="dl" onClick={(e) => { e.stopPropagation(); dlInvoice(p.id); }}>
+                            ? <button className="dl" onClick={(e) => { e.stopPropagation(); dlInvoice(p.orderId); }}>
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                 <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
