@@ -80,6 +80,23 @@ function formatDateTime(val: any) {
   }
 }
 
+function formatExactDateTime(val: any) {
+  if (!val || val === "N/A") return "N/A";
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+  } catch {
+    return String(val);
+  }
+}
+
 /* ─── Main page ──────────────────────────────────────────── */
 export default function AdminPage() {
   const router = useRouter();
@@ -104,13 +121,18 @@ export default function AdminPage() {
   const [trackingData, setTrackingData] = useState<any>(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackingError, setTrackingError] = useState("");
+  const [modalTab, setModalTab] = useState<"payhere" | "logs">("payhere");
+  const [modalViewMode, setModalViewMode] = useState<"single_payment" | "user_history">("single_payment");
 
   const handleRowClick = useCallback(async (userId: number, orderId?: string) => {
     setTrackingLoading(true);
     setTrackingError("");
     setTrackingData(null);
+    // When orderId is passed (from Payments tab), show single payment details
+    // When only userId is passed (from Users tab), show all user payment history
+    setModalViewMode(orderId ? "single_payment" : "user_history");
     try {
-      const url = orderId 
+      const url = orderId
         ? buildApiUrl(`/api/admin/user-tracking/0`, { orderId })
         : buildApiUrl(`/api/admin/user-tracking/${userId}`);
       const r = await fetch(url);
@@ -125,9 +147,82 @@ export default function AdminPage() {
     }
   }, []);
 
+  const handleConfirmOrder = async (orderId: string) => {
+    if (!window.confirm("Are you sure you want to manually mark this order as successful and activate the subscription?")) {
+      return;
+    }
+    setTrackingLoading(true);
+    try {
+      const res = await fetch(buildApiUrl("/api/payment/confirm-success"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      if (!res.ok) throw new Error("Failed to confirm payment");
+      
+      // Refresh the main payments list
+      await fetchPay(payMeta.page, search, status, payLimit);
+      
+      // Refresh the modal data
+      if (trackingData) {
+        const userId = trackingData.user?.id || 0;
+        const url = orderId 
+          ? buildApiUrl(`/api/admin/user-tracking/0`, { orderId })
+          : buildApiUrl(`/api/admin/user-tracking/${userId}`);
+        const r = await fetch(url);
+        if (r.ok) {
+          const j = await r.json();
+          if (j.success) setTrackingData(j);
+        }
+      }
+      alert("Order successfully confirmed and subscription activated!");
+    } catch (err: any) {
+      alert(err.message || "Error confirming payment");
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async (orderId: string) => {
+    if (!window.confirm("Are you sure you want to cancel this subscription? This will stop recurring billing on PayHere and mark it as cancelled locally.")) {
+      return;
+    }
+    setTrackingLoading(true);
+    try {
+      const res = await fetch(buildApiUrl("/api/admin/cancel-subscription"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      if (!res.ok) throw new Error("Failed to cancel subscription");
+      
+      // Refresh the main payments list
+      await fetchPay(payMeta.page, search, status, payLimit);
+      
+      // Refresh the modal data
+      if (trackingData) {
+        const userId = trackingData.user?.id || 0;
+        const url = orderId 
+          ? buildApiUrl(`/api/admin/user-tracking/0`, { orderId })
+          : buildApiUrl(`/api/admin/user-tracking/${userId}`);
+        const r = await fetch(url);
+        if (r.ok) {
+          const j = await r.json();
+          if (j.success) setTrackingData(j);
+        }
+      }
+      alert("Subscription cancelled successfully!");
+    } catch (err: any) {
+      alert(err.message || "Error cancelling subscription");
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
   const closeTrackingModal = () => {
     setTrackingData(null);
     setTrackingError("");
+    setModalTab("payhere");
   };
 
   /* ── Fetch payments ── */
@@ -287,7 +382,18 @@ export default function AdminPage() {
                           <td className="dim">{p.userEmail}</td>
                           <td>{p.user_count}</td>
                           <td className="amt">{formatPrice(Number(p.total_amount), p.currency)}</td>
-                          <td><Badge s={p.status} /></td>
+                          <td>
+                            <Badge s={p.status} />
+                            {p.status === "PENDING" && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleConfirmOrder(p.orderId); }}
+                                className="dl" 
+                                style={{ display: "block", marginTop: 6, padding: "3px 8px", background: "rgba(99, 102, 241, 0.15)", border: "1px solid rgba(99, 102, 241, 0.35)", color: "#a5b4fc", fontSize: 11 }}
+                              >
+                                Confirm
+                              </button>
+                            )}
+                          </td>
                           <td>{p.invoice_path
                             ? <button className="dl" onClick={(e) => { e.stopPropagation(); dlInvoice(p.orderId); }}>
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -344,8 +450,8 @@ export default function AdminPage() {
               <div className="modal-box" onClick={(e) => e.stopPropagation()}>
                 <header className="m-hdr">
                   <div>
-                    <h2 className="m-title">Comprehensive User & Payment Tracking</h2>
-                    <p className="m-sub">Live PayHere App Verification & Real-time Timeline Logs</p>
+                    <h2 className="m-title">{modalViewMode === "single_payment" ? "Payment Details" : "User Payment History"}</h2>
+                    <p className="m-sub">{modalViewMode === "single_payment" ? "Single payment record tracking & verification" : "All payments & subscription history for this user"}</p>
                   </div>
                   <button className="m-close" onClick={closeTrackingModal}>✕</button>
                 </header>
@@ -382,110 +488,311 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Summary Banner */}
-                      <div className="t-banner">
-                        <div className="t-b-item">
-                          <span>Total Payments Tracked:</span>
-                          <strong>{trackingData.summary?.totalPaymentsTracked || 0}</strong>
-                        </div>
-                        <div className="t-b-sep">•</div>
-                        <div className="t-b-item">
-                          <span>Latest Next Payment Date:</span>
-                          <strong style={{ color: "#34d399" }}>{formatDateTime(trackingData.summary?.latestNextPaymentDate)}</strong>
-                        </div>
-                        <div className="t-b-sep">•</div>
-                        <div className="t-b-item">
-                          <span>Live PayHere Connection:</span>
-                          <strong style={{ color: trackingData.fetchedFromPayhereAppLive ? "#a5b4fc" : "#f87171" }}>
-                            {trackingData.fetchedFromPayhereAppLive ? "Connected & Verified" : "Sandbox Database Fallback"}
-                          </strong>
-                        </div>
+                      {/* Tabs Navigation */}
+                      <div className="tab-nav" style={{ 
+                        display: "flex", 
+                        gap: 8, 
+                        borderBottom: "1px solid rgba(255,255,255,0.08)", 
+                        paddingBottom: 10, 
+                        marginBottom: 10 
+                      }}>
+                        <button 
+                          onClick={() => setModalTab("payhere")}
+                          className={`tab-btn ${modalTab === "payhere" ? "active" : ""}`}
+                          style={{
+                            background: modalTab === "payhere" ? "rgba(99, 102, 241, 0.15)" : "transparent",
+                            border: modalTab === "payhere" ? "1px solid rgba(99, 102, 241, 0.35)" : "1px solid transparent",
+                            color: modalTab === "payhere" ? "#a5b4fc" : "#94a3b8",
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            fontSize: 13,
+                            transition: "all 0.2s ease"
+                          }}
+                        >
+                          💳 PayHere Subscription Details
+                        </button>
+                        <button 
+                          onClick={() => setModalTab("logs")}
+                          className={`tab-btn ${modalTab === "logs" ? "active" : ""}`}
+                          style={{
+                            background: modalTab === "logs" ? "rgba(99, 102, 241, 0.15)" : "transparent",
+                            border: modalTab === "logs" ? "1px solid rgba(99, 102, 241, 0.35)" : "1px solid transparent",
+                            color: modalTab === "logs" ? "#a5b4fc" : "#94a3b8",
+                            padding: "8px 16px",
+                            borderRadius: 8,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            fontSize: 13,
+                            transition: "all 0.2s ease"
+                          }}
+                        >
+                          📋 Unified Payments & Webhook Logs
+                        </button>
                       </div>
 
-                      {/* Comprehensive Payments Table */}
-                      <h3 className="t-section-title">Tracked Payments & PayHere App Sync Logs</h3>
-                      <div className="tbl-wrap" style={{ maxHeight: 360, overflowY: "auto" }}>
-                        <table className="tbl">
-                          <thead>
-                            <tr>
-                              <th>Payment & Order Details</th>
-                              <th>Amount & Charge Type</th>
-                              <th>Next Payment Date</th>
-                              <th>Card Update Logs</th>
-                              <th>PayHere App Linkage</th>
-                              <th>Failed Alerts & Email Tracking</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {trackingData.trackingRecords?.length === 0 ? (
-                              <tr><td colSpan={6} className="empty">No tracking timeline recorded for this account.</td></tr>
-                            ) : (
-                              trackingData.trackingRecords?.map((tr: any) => (
-                                <tr key={tr.id}>
-                                  <td className="mono" style={{ fontSize: 11, color: "#cbd5e1" }}>
-                                    <div>{tr.orderId}</div>
-                                    <div style={{ color: "#38bdf8", fontWeight: 600, fontSize: 10, marginTop: 4 }}>
-                                      Pay ID: {tr.paymentId}
-                                    </div>
-                                    <div style={{ marginTop: 6 }}>
-                                      <Badge s={tr.status} />
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <div className="amt" style={{ fontWeight: 700, fontSize: 14 }}>
-                                      {formatPrice(tr.totalAmount, tr.currency)}
-                                    </div>
-                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
-                                      Type: <span style={{ color: tr.type === "INITIAL" ? "#38bdf8" : "#a855f7", fontWeight: 700 }}>{tr.type}</span>
-                                    </div>
-                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-                                      Date: {formatDateTime(tr.date)}
-                                    </div>
-                                  </td>
-                                  <td style={{ color: tr.nextPaymentDateTime !== "N/A" ? "#34d399" : "inherit", fontWeight: 600 }}>
-                                    {formatDateTime(tr.nextPaymentDateTime)}
-                                  </td>
-                                  <td>
-                                    {tr.cardTracking?.updated ? (
-                                      <div className="card-log">
-                                        <span className="c-dot success"></span>
-                                        <div>
-                                          <div style={{ fontWeight: 600, color: "#38bdf8" }}>Updated ({tr.cardTracking.method})</div>
-                                          <div className="dim" style={{ fontSize: 10 }}>{formatDateTime(tr.cardTracking.updatedAt)}</div>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="dim" style={{ fontSize: 11 }}>Original Setup / Default</div>
-                                    )}
-                                  </td>
-                                  <td>
-                                    <div style={{ fontSize: 11, background: "rgba(255,255,255,0.04)", padding: "4px 8px", borderRadius: 6 }}>
-                                      <span style={{ color: "#a5b4fc", fontWeight: 600 }}>Status:</span> {tr.livePayhereAppDetails?.status || "Unknown"}
-                                      {tr.livePayhereAppDetails?.next_payment_date && (
-                                        <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>Sync: {formatDateTime(tr.livePayhereAppDetails.next_payment_date)}</div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td>
-                                    {tr.isFailed ? (
-                                      <div style={{ background: "rgba(248,113,113,0.1)", padding: "5px 9px", borderRadius: 6, border: "1px solid rgba(248,113,113,0.2)" }}>
-                                        <div style={{ color: "#f87171", fontWeight: 700, fontSize: 11 }}>⚠️ Subscription Failed</div>
-                                        <div style={{ fontSize: 10, color: "#e2e8f0", marginTop: 2 }}>Mail: <strong style={{ color: tr.emailTracking?.sent ? "#34d399" : "#fbbf24" }}>{tr.emailTracking?.status}</strong></div>
-                                        <div className="dim" style={{ fontSize: 9 }}>To: {tr.emailTracking?.recipient}</div>
-                                      </div>
-                                    ) : (
-                                      <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                                        <span style={{ color: "#34d399" }}>✓ Successful</span>
-                                        <div style={{ fontSize: 10, marginTop: 2 }}>Mail: {tr.emailTracking?.status}</div>
-                                      </div>
-                                    )}
-                                  </td>
+                      {modalTab === "payhere" ? (
+                        /* PayHere Subscription Details tab (Cloned Layout) */
+                        <div className="payhere-details-drawer" style={{ background: "rgba(255,255,255,0.01)", padding: 24, borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 20 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: 16 }}>
+                            <span style={{ color: "#94a3b8", fontWeight: 600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>Status :</span>
+                            <span style={{ 
+                              color: trackingData.activeSubscription?.status === "ACTIVE" ? "#10b981" : "#f59e0b", 
+                              fontWeight: 800, 
+                              fontSize: 15,
+                              background: trackingData.activeSubscription?.status === "ACTIVE" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)",
+                              padding: "4px 10px",
+                              borderRadius: 6,
+                              border: trackingData.activeSubscription?.status === "ACTIVE" ? "1px solid rgba(16,185,129,0.25)" : "1px solid rgba(245,158,11,0.25)"
+                            }}>
+                              {trackingData.activeSubscription?.status === "ACTIVE" ? "Active" : (trackingData.activeSubscription?.status || "Inactive")}
+                            </span>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 24 }}>
+                            <div>
+                              <h4 style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Customer Details</h4>
+                              <div style={{ fontSize: 13, lineHeight: "1.6", color: "#e2e8f0" }}>
+                                <div style={{ fontWeight: 600 }}>{trackingData.user?.name || "User N/A"}</div>
+                                <div style={{ color: "rgba(255,255,255,0.45)" }}>{trackingData.user?.email}</div>
+                                <div style={{ color: "rgba(255,255,255,0.45)" }}>0771234567</div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Billing Details</h4>
+                              <div style={{ fontSize: 13, lineHeight: "1.6", color: "#e2e8f0" }}>
+                                <div style={{ color: "rgba(255,255,255,0.45)" }}>N/A</div>
+                                <div style={{ color: "rgba(255,255,255,0.45)" }}>Colombo</div>
+                                <div style={{ color: "rgba(255,255,255,0.45)" }}>Sri Lanka</div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Order Details</h4>
+                              <div style={{ fontSize: 13, lineHeight: "1.6", color: "#e2e8f0" }}>
+                                <div>Subscription ID: <span style={{ fontFamily: "monospace", color: "#38bdf8", fontWeight: 600 }}>#{trackingData.activeSubscription?.id || "N/A"}</span></div>
+                                <div>Domain: <a href="https://www.techorin.xyz/" target="_blank" rel="noreferrer" style={{ color: "#38bdf8", textDecoration: "none", fontWeight: 500 }}>https://www.techorin.xyz/</a></div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Payment Details</h4>
+                              <div style={{ fontSize: 13, lineHeight: "1.6", color: "#e2e8f0" }}>
+                                <div>Date: {formatDateTime(trackingData.activeSubscription?.start_date || trackingData.trackingRecords[0]?.date)}</div>
+                                <div>Amount: {formatPrice(Number(trackingData.trackingRecords[0]?.subscriptionAmount || 40.00), trackingData.trackingRecords[0]?.currency)}</div>
+                                <div style={{ color: "#34d399", fontWeight: 600 }}>Period: Every Day for Forever</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ background: "rgba(255,255,255,0.02)", padding: 18, borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", marginTop: 10 }}>
+                            <h4 style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Item Details</h4>
+                            <div style={{ display: "flex", justifyContent: "space-between", color: "#e2e8f0", fontSize: 13, marginBottom: 10, flexWrap: "wrap", gap: 10 }}>
+                              <span>Registration Fee ({formatPrice(Number(trackingData.trackingRecords[0]?.basePrice || 50.00), trackingData.trackingRecords[0]?.currency)}) + 1 Day Subscription ({formatPrice(Number(trackingData.trackingRecords[0]?.subscriptionAmount || 40.00), trackingData.trackingRecords[0]?.currency)}) ({formatPrice(Number(trackingData.trackingRecords[0]?.totalAmount || 90.00), trackingData.trackingRecords[0]?.currency)} x 1)</span>
+                              <span style={{ fontWeight: 600 }}>{formatPrice(Number(trackingData.trackingRecords[0]?.totalAmount || 90.00), trackingData.trackingRecords[0]?.currency)}</span>
+                            </div>
+                            <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10, display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: 14, color: "#fff" }}>
+                              <span>Total</span>
+                              <span style={{ color: "#a5b4fc" }}>{formatPrice(Number(trackingData.trackingRecords[0]?.totalAmount || 90.00), trackingData.trackingRecords[0]?.currency)}</span>
+                            </div>
+                          </div>
+
+                          {trackingData.activeSubscription?.status === "ACTIVE" && (
+                            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+                              <button 
+                                onClick={() => handleCancelSubscription(trackingData.trackingRecords[0]?.orderId)}
+                                style={{ 
+                                  background: "#d97706", 
+                                  border: "none", 
+                                  borderRadius: 8, 
+                                  color: "#fff", 
+                                  padding: "10px 22px", 
+                                  fontWeight: 700, 
+                                  cursor: "pointer",
+                                  fontSize: 13,
+                                  boxShadow: "0 4px 14px rgba(217, 119, 6, 0.25)",
+                                  transition: "all 0.2s"
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.filter = "brightness(1.15)"}
+                                onMouseOut={(e) => e.currentTarget.style.filter = "none"}
+                              >
+                                Cancel Subscription
+                              </button>
+                            </div>
+                          )}
+
+                          <div style={{ marginTop: 20 }}>
+                            <h4 style={{ color: "#fff", fontSize: 13, fontWeight: 800, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                              <span>Received Payments via this Subscription</span>
+                              <span style={{ background: "rgba(99,102,241,0.18)", color: "#a5b4fc", fontSize: 11, padding: "2px 8px", borderRadius: 10 }}>
+                                {trackingData.trackingRecords.filter((tr: any) => tr.status !== "PENDING").length}
+                              </span>
+                            </h4>
+                            <div className="tbl-wrap" style={{ overflowX: "auto", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, background: "rgba(255,255,255,0.01)" }}>
+                              <table className="tbl" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                <thead>
+                                  <tr style={{ background: "#e2e8f0" }}>
+                                    <th style={{ color: "#1e293b", padding: "10px 16px", fontWeight: 700, textTransform: "none", fontSize: 13, borderBottom: "1px solid rgba(0,0,0,0.05)" }}>Date</th>
+                                    <th style={{ color: "#1e293b", padding: "10px 16px", fontWeight: 700, textTransform: "none", fontSize: 13, borderBottom: "1px solid rgba(0,0,0,0.05)" }}>Payment No</th>
+                                    <th style={{ color: "#1e293b", padding: "10px 16px", fontWeight: 700, textTransform: "none", fontSize: 13, borderBottom: "1px solid rgba(0,0,0,0.05)" }}>Status</th>
+                                    <th style={{ color: "#1e293b", padding: "10px 16px", fontWeight: 700, textTransform: "none", fontSize: 13, borderBottom: "1px solid rgba(0,0,0,0.05)" }}>Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody style={{ background: "#f8fafc" }}>
+                                  {trackingData.trackingRecords.filter((tr: any) => tr.status !== "PENDING").length === 0 ? (
+                                    <tr>
+                                      <td colSpan={4} style={{ textAlign: "center", color: "#64748b", padding: "24px 0" }}>No received payments yet.</td>
+                                    </tr>
+                                  ) : (
+                                    trackingData.trackingRecords
+                                      .filter((tr: any) => tr.status !== "PENDING")
+                                      .map((tr: any) => (
+                                        <tr key={tr.id} style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+                                          <td style={{ padding: "12px 16px", color: "#334155" }}>{formatExactDateTime(tr.date)}</td>
+                                          <td style={{ padding: "12px 16px" }}>
+                                            <a 
+                                              href="#" 
+                                              onClick={(e) => e.preventDefault()}
+                                              style={{ color: "#2563eb", textDecoration: "none", fontWeight: 600 }}
+                                              onMouseOver={(e) => e.currentTarget.style.textDecoration = "underline"}
+                                              onMouseOut={(e) => e.currentTarget.style.textDecoration = "none"}
+                                            >
+                                              {tr.paymentId === "N/A" ? tr.id?.slice(0, 12) : tr.paymentId}
+                                            </a>
+                                          </td>
+                                          <td style={{ padding: "12px 16px", color: "#334155", fontWeight: 500 }}>
+                                            {tr.status === "ACTIVE" ? "Authorized" : tr.status}
+                                          </td>
+                                          <td style={{ padding: "12px 16px", color: "#1e293b", fontWeight: 700 }}>
+                                            {formatPrice(tr.totalAmount, tr.currency)}
+                                          </td>
+                                        </tr>
+                                      ))
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Unified Payments Log tab (Original Table & Banner) */
+                        <>
+                          {/* Summary Banner */}
+                          <div className="t-banner">
+                            <div className="t-b-item">
+                              <span>Total Payments Tracked:</span>
+                              <strong>{trackingData.summary?.totalPaymentsTracked || 0}</strong>
+                            </div>
+                            <div className="t-b-sep">•</div>
+                            <div className="t-b-item">
+                              <span>Latest Next Payment Date:</span>
+                              <strong style={{ color: "#34d399" }}>{formatDateTime(trackingData.summary?.latestNextPaymentDate)}</strong>
+                            </div>
+                            <div className="t-b-sep">•</div>
+                            <div className="t-b-item">
+                              <span>Live PayHere Connection:</span>
+                              <strong style={{ color: trackingData.fetchedFromPayhereAppLive ? "#a5b4fc" : "#f87171" }}>
+                                {trackingData.fetchedFromPayhereAppLive ? "Connected & Verified" : "Sandbox Database Fallback"}
+                              </strong>
+                            </div>
+                          </div>
+
+                          <h3 className="t-section-title">Tracked Payments & PayHere App Sync Logs</h3>
+                          <div className="tbl-wrap" style={{ maxHeight: 360, overflowY: "auto" }}>
+                            <table className="tbl">
+                              <thead>
+                                <tr>
+                                  <th>Payment & Order Details</th>
+                                  <th>Amount & Charge Type</th>
+                                  <th>Next Payment Date</th>
+                                  <th>Card Update Logs</th>
+                                  <th>PayHere App Linkage</th>
+                                  <th>Failed Alerts & Email Tracking</th>
                                 </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
+                              </thead>
+                              <tbody>
+                                {trackingData.trackingRecords?.length === 0 ? (
+                                  <tr><td colSpan={6} className="empty">No tracking timeline recorded for this account.</td></tr>
+                                ) : (
+                                  trackingData.trackingRecords?.map((tr: any) => (
+                                    <tr key={tr.id}>
+                                      <td className="mono" style={{ fontSize: 11, color: "#cbd5e1" }}>
+                                        <div>{tr.orderId}</div>
+                                        <div style={{ color: "#38bdf8", fontWeight: 600, fontSize: 10, marginTop: 4 }}>
+                                          Pay ID: {tr.paymentId}
+                                        </div>
+                                        <div style={{ marginTop: 6 }}>
+                                          <Badge s={tr.status} />
+                                        </div>
+                                        {tr.status === "PENDING" && (
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); handleConfirmOrder(tr.orderId); }}
+                                            className="dl" 
+                                            style={{ marginTop: 8, padding: "4px 8px", background: "rgba(99, 102, 241, 0.15)", border: "1px solid rgba(99, 102, 241, 0.35)", color: "#a5b4fc", fontSize: 11 }}
+                                          >
+                                            ✓ Manually Confirm
+                                          </button>
+                                        )}
+                                      </td>
+                                      <td>
+                                        <div className="amt" style={{ fontWeight: 700, fontSize: 14 }}>
+                                          {formatPrice(tr.totalAmount, tr.currency)}
+                                        </div>
+                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
+                                          Type: <span style={{ color: tr.type === "INITIAL" ? "#38bdf8" : "#a855f7", fontWeight: 700 }}>{tr.type}</span>
+                                        </div>
+                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                                          Date: {formatDateTime(tr.date)}
+                                        </div>
+                                      </td>
+                                      <td style={{ color: tr.nextPaymentDateTime !== "N/A" ? "#34d399" : "inherit", fontWeight: 600 }}>
+                                        {formatDateTime(tr.nextPaymentDateTime)}
+                                      </td>
+                                      <td>
+                                        {tr.cardTracking?.updated ? (
+                                          <div className="card-log">
+                                            <span className="c-dot success"></span>
+                                            <div>
+                                              <div style={{ fontWeight: 600, color: "#38bdf8" }}>Updated ({tr.cardTracking.method})</div>
+                                              <div className="dim" style={{ fontSize: 10 }}>{formatDateTime(tr.cardTracking.updatedAt)}</div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="dim" style={{ fontSize: 11 }}>Original Setup / Default</div>
+                                        )}
+                                      </td>
+                                      <td>
+                                        <div style={{ fontSize: 11, background: "rgba(255,255,255,0.04)", padding: "4px 8px", borderRadius: 6 }}>
+                                          <span style={{ color: "#a5b4fc", fontWeight: 600 }}>Status:</span> {tr.livePayhereAppDetails?.status || "Unknown"}
+                                          {tr.livePayhereAppDetails?.next_payment_date && (
+                                            <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>Sync: {formatDateTime(tr.livePayhereAppDetails.next_payment_date)}</div>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td>
+                                        {tr.isFailed ? (
+                                          <div style={{ background: "rgba(248,113,113,0.1)", padding: "5px 9px", borderRadius: 6, border: "1px solid rgba(248,113,113,0.2)" }}>
+                                            <div style={{ color: "#f87171", fontWeight: 700, fontSize: 11 }}>⚠️ Subscription Failed</div>
+                                            <div style={{ fontSize: 10, color: "#e2e8f0", marginTop: 2 }}>Mail: <strong style={{ color: tr.emailTracking?.sent ? "#34d399" : "#fbbf24" }}>{tr.emailTracking?.status}</strong></div>
+                                            <div className="dim" style={{ fontSize: 9 }}>To: {tr.emailTracking?.recipient}</div>
+                                          </div>
+                                        ) : (
+                                          <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                                            <span style={{ color: "#34d399" }}>✓ Successful</span>
+                                            <div style={{ fontSize: 10, marginTop: 2 }}>Mail: {tr.emailTracking?.status}</div>
+                                          </div>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : null}
                 </div>

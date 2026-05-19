@@ -326,6 +326,10 @@ export function formatPrice(price: number, dynamicCurrencyCode?: string): string
 
   const code = dynamicCurrencyCode || UI.CURRENCY.CURRENCY_CODE;
 
+  if (code === "LKR" || code === "Rs") {
+    return `Rs. ${price.toFixed(decimals)}`;
+  }
+
   if (!code || !UI.CURRENCY.LOCALE) {
     return price.toFixed(decimals);
   }
